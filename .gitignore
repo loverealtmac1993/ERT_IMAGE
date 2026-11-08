@@ -1,0 +1,30 @@
+# Local MATLAB state and generated files
+*.asv
+*.m~
+*.mex*
+*.mat
+*.log
+slprj/
+*.slxc
+
+# Build outputs, temporary data and backups
+build_eit71_noser_app/
+backup_*/
+matlab_*.log
+caini7_capture_decoded/*
+!caini7_capture_decoded/.gitkeep
+eit71_*_smoke.png
+eit71_temperature_pressure_*.png
+
+# Local configuration / credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.DS_Store
+Thumbs.db
+
+# External firmware / third-party runtime copies
+CAINI_Project_*/
+netgen_ascii/
