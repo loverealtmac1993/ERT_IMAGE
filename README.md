@@ -89,4 +89,6 @@ test_eit71_caini7_capture
 build_eit71_noser_upper_pc_app
 ```
 
-需要安装并许可 MATLAB Compiler；输出目录为 `build_eit71_noser_app`。无 MATLAB 的目标电脑需匹配版本的 MATLAB Runtime。本仓库不含已构建 EXE。
+需要安装并许可 MATLAB Compiler。默认生成图形界面 EXE 和联网 Runtime 安装包，分别位于 `build_eit71_noser_app/application` 与 `installer_web`。目标电脑无需安装 MATLAB；安装包会下载免费的匹配版 MATLAB Runtime。
+
+支持 `build_eit71_noser_upper_pc_app('installer')` 捆绑离线 Runtime，也支持第二个参数指定外部大型模拟模型路径。EXE 和安装包通过 GitHub Releases 分发，源码仓库不保存二进制或 Runtime。操作及验证范围见 [Windows EXE 使用说明](docs/Windows_EXE使用说明.md)。

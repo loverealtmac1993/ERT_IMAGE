@@ -112,6 +112,6 @@ test_eit71_caini7_capture   % 本次真实HEX、FF触发、分段接收和GUI导
 build_eit71_noser_upper_pc_app
 ```
 
-本机缺少MATLAB Compiler工具箱，本次未生成新版EXE。脚本已增加文件导入模块检查，安装匹配Compiler后可构建。
+Windows版使用 MATLAB R2023a Update 2 和 MATLAB Compiler 8.6 构建。脚本默认生成图形界面 EXE，以及可下载免费 MATLAB Runtime 的联网安装包，输出位于 build_eit71_noser_app/application 和 installer_web。目标电脑无需安装 MATLAB；首次使用应运行 CAINI7_EIT_Setup.exe 安装运行环境。详见 Windows_EXE使用说明.md。
 
 更详细的源码证据见 `CAINI7最终协议核验.md`。本次修改前的代码备份在 `backup_before_final_caini7_20261108`。

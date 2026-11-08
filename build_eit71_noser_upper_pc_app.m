@@ -1,78 +1,94 @@
-% Build the 71-electrode EIT NOSER upper-computer GUI as a Windows executable.
-%
-% Requirements:
-%   - MATLAB Compiler installed and licensed
-%   - Existing simulation result MAT:
-%       seafloor_core_hydrate_internal_probe_eit_result.mat
-%
-% Output:
-%   outputs\build_eit71_noser_app\eit71_noser_upper_pc_app.exe
+function files = build_eit71_noser_upper_pc_app(runtime_delivery, model_file)
+% Build a Windows GUI executable and a MATLAB Runtime aware installer.
+%   build_eit71_noser_upper_pc_app                 % web Runtime installer
+%   build_eit71_noser_upper_pc_app('installer')    % offline Runtime installer
+%   build_eit71_noser_upper_pc_app('web', model_file)
+% Serial reception works without the optional legacy simulation model.
 
-clear; clc;
-
+if nargin < 1 || isempty(runtime_delivery), runtime_delivery = 'web'; end
+runtime_delivery = validatestring(runtime_delivery, {'web','installer'});
 out_dir = fileparts(mfilename('fullpath'));
-build_dir = fullfile(out_dir, 'build_eit71_noser_app');
-main_file = fullfile(out_dir, 'eit71_noser_upper_pc_app.m');
-protocol_files = {fullfile(out_dir, 'Eit71BoardProtocol.m'), ...
-    fullfile(out_dir, 'Eit71BoardSession.m'), ...
-    fullfile(out_dir, 'Eit71MeasurementLayout.m'), ...
-    fullfile(out_dir, 'read_eit71_board_capture.m')};
-
-extra_files = {
-    fullfile(out_dir, 'seafloor_core_hydrate_internal_probe_eit_result.mat')
-    fullfile(out_dir, 'eit71_mock_serial_log.txt')
-    fullfile(out_dir, 'eit71_mock_hydrate_progress_log.txt')
-    fullfile(out_dir, 'eit71_mock_hydrate_progress_metadata.csv')
-    fullfile(out_dir, '71电极EIT_NOSER上位机使用说明.md')
-    fullfile(out_dir, 'CAINI7最终协议核验.md')
-    };
-
-if ~exist(main_file, 'file')
-    error('Main app file not found: %s', main_file);
+if nargin < 2 || isempty(model_file)
+    model_file = fullfile(out_dir, 'seafloor_core_hydrate_internal_probe_eit_result.mat');
 end
-for i = 1:numel(protocol_files)
-    if ~isfile(protocol_files{i})
-        error('Required binary protocol module not found: %s', protocol_files{i});
-    end
+if ~ispc
+    error('EIT:WindowsBuildRequired','Build the Windows EXE on Windows.');
 end
-
-missing = extra_files(~cellfun(@(p) exist(p, 'file') == 2, extra_files));
-if ~isempty(missing)
-    fprintf('Some optional/runtime data files are missing:\n');
-    for i = 1:numel(missing)
-        fprintf('  %s\n', missing{i});
-    end
-    fprintf('Generate mock logs first if you want them bundled.\n');
-end
-
-if exist(build_dir, 'dir')
-    warning('Build directory already exists and will be reused: %s', build_dir);
-else
-    mkdir(build_dir);
-end
-
-% -I makes the class dependencies discoverable even when invoked elsewhere.
-cmd = {'mcc', '-m', main_file, '-I', out_dir, '-d', build_dir, '-o', 'eit71_noser_upper_pc_app'};
-for i = 1:numel(extra_files)
-    if exist(extra_files{i}, 'file')
-        cmd = [cmd, {'-a', extra_files{i}}]; %#ok<AGROW>
-    end
-end
-
-fprintf('Running MATLAB Compiler command:\n');
-fprintf('  %s\n', strjoin(cmd, ' '));
-
-if isempty(ver('compiler'))
+if isempty(ver('compiler')) || isempty(which('compiler.build.standaloneWindowsApplication'))
     error('EIT:CompilerNotInstalled', ...
-        'MATLAB Compiler is not installed. A license entry alone is insufficient. Install the matching Compiler toolbox, then run this script again; the app source can run directly in MATLAB.');
+        'Install MATLAB Compiler matching this MATLAB release and update first.');
 end
-if license('test', 'Compiler') ~= 1
-    error('EIT:CompilerNotLicensed', ...
-        'MATLAB Compiler license is not available. Activate MATLAB Compiler to build an EXE.');
+if license('test','Compiler') ~= 1
+    error('EIT:CompilerNotLicensed','MATLAB Compiler license is not available.');
 end
 
-mcc(cmd{2:end});
+main_file = fullfile(out_dir,'eit71_noser_upper_pc_app.m');
+required = {'eit71_noser_upper_pc_app.m','Eit71BoardProtocol.m', ...
+    'Eit71BoardSession.m','Eit71MeasurementLayout.m','read_eit71_board_capture.m'};
+for i = 1:numel(required)
+    assert(isfile(fullfile(out_dir,required{i})), 'EIT:MissingBuildInput', ...
+        'Required build input not found: %s',required{i});
+end
+extra = {model_file, ...
+    fullfile(out_dir,'eit71_mock_serial_log.txt'), ...
+    fullfile(out_dir,'eit71_mock_hydrate_progress_log.txt'), ...
+    fullfile(out_dir,'eit71_mock_hydrate_progress_metadata.csv'), ...
+    fullfile(out_dir,'71电极EIT_NOSER上位机使用说明.md'), ...
+    fullfile(out_dir,'CAINI7最终协议核验.md')};
+has_model = isfile(model_file);
+if ~has_model
+    warning('EIT:LegacyModelNotBundled', ...
+        'Legacy simulation model not found. Serial acquisition and capture import remain available.');
+end
+extra = extra(cellfun(@isfile,extra));
+old_path = path;
+restore = onCleanup(@() path(old_path));
+addpath(out_dir);
 
-fprintf('\nBuild finished.\n');
-fprintf('Executable directory: %s\n', build_dir);
-fprintf('Run: %s\n', fullfile(build_dir, 'eit71_noser_upper_pc_app.exe'));
+build_root = fullfile(out_dir,'build_eit71_noser_app');
+exe_dir = fullfile(build_root,'application');
+installer_dir = fullfile(build_root,['installer_' runtime_delivery]);
+if ~isfolder(build_root), mkdir(build_root); end
+fprintf('Building Windows GUI with %s (%s). Legacy model bundled: %d\n', ...
+    version,version('-release'),has_model);
+results = compiler.build.standaloneWindowsApplication(main_file, ...
+    'ExecutableName','eit71_noser_upper_pc_app', ...
+    'ExecutableVersion','1.1.0.0', ...
+    'AdditionalFiles',extra, 'OutputDir',exe_dir, 'Verbose','on');
+save(fullfile(build_root,'build_results.mat'),'results');
+
+sample = fullfile(out_dir,'tests','fixtures','caini7_sample_3488.hex');
+package_extra = {};
+if isfile(sample), package_extra{end+1} = sample; end
+instructions = fullfile(out_dir,'docs','Windows_EXE使用说明.md');
+if isfile(instructions), package_extra{end+1} = instructions; end
+for name = {'71电极EIT_NOSER上位机使用说明.md','CAINI7最终协议核验.md'}
+    document = fullfile(out_dir,name{1});
+    if isfile(document), package_extra{end+1} = document; end
+end
+if strcmp(runtime_delivery,'installer')
+    compiler.runtime.download;
+end
+compiler.package.installer(results, ...
+    'ApplicationName','CAINI7 EIT Upper Computer', ...
+    'InstallerName','CAINI7_EIT_Setup', ...
+    'Version','1.1.0', ...
+    'Summary','CAINI7 3488-byte serial telemetry, temperature, pressure and EIT simulation', ...
+    'Shortcut',fullfile(exe_dir,'eit71_noser_upper_pc_app.exe'), ...
+    'InstallationNotes',['Requires free MATLAB Runtime ' version('-release') ...
+        '. MATLAB installation is not required.'], ...
+    'RuntimeDelivery',runtime_delivery, ...
+    'AdditionalFiles',package_extra, 'OutputDir',installer_dir);
+
+files = struct('executable',fullfile(exe_dir,'eit71_noser_upper_pc_app.exe'), ...
+    'installer_dir',installer_dir,'runtime_delivery',runtime_delivery, ...
+    'legacy_model_bundled',has_model,'matlab_version',version, ...
+    'matlab_release',version('-release'));
+assert(isfile(files.executable),'EIT:ExecutableMissing','The compiler produced no EXE.');
+fid = fopen(fullfile(build_root,'build_manifest.json'),'w','n','UTF-8');
+assert(fid >= 0,'EIT:BuildManifest','Cannot create build manifest.');
+close_manifest = onCleanup(@() fclose(fid));
+fprintf(fid,'%s\n',jsonencode(files,'PrettyPrint',true));
+fprintf('\nEXE: %s\nInstaller folder: %s\n',files.executable,installer_dir);
+fprintf('Target computers need the matching free MATLAB Runtime, not MATLAB.\n');
+end
