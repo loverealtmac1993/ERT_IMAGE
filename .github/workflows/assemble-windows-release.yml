@@ -1,0 +1,28 @@
+name: Assemble verified Windows release
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Draft Release tag containing verified upload parts
+        required: true
+        default: v1.1.0
+        type: string
+permissions:
+  contents: write
+concurrency:
+  group: assemble-windows-release-${{ inputs.release_tag }}
+  cancel-in-progress: false
+jobs:
+  assemble:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+    steps:
+      - name: Restore original files and verify all SHA-256 digests
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/contents/scripts/assemble_release_parts.py?ref=${GITHUB_SHA}" --jq .content | base64 --decode > "${RUNNER_TEMP}/assemble_release_parts.py"
+          python3 "${RUNNER_TEMP}/assemble_release_parts.py"
